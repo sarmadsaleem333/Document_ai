@@ -1,0 +1,23 @@
+{
+    "invoice.pdf": {
+        "class": "Invoice",
+        "invoice_number": null,
+        "date": "2023-06-13",
+        "company": null,
+        "total_amount": 10620.0
+    },
+    "Resume_Sarmad-Saleem.pdf": {
+        "class": "Resume",
+        "name": "Muhammad Sarmad Saleem",
+        "email": "sarmadsaleem.333@gmail.com",
+        "phone": "+92-333-4070869",
+        "experience_years": null
+    },
+    "Sample_Utility_Bill.pdf": {
+        "class": "Utility Bill",
+        "account_number": "000000-000",
+        "date": "12/29/2017",
+        "usage_kwh": null,
+        "amount_due": 76.0
+    }
+}

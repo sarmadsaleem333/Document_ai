@@ -37,12 +37,14 @@ pip install -r requirements.txt
 ```
 
 **Core dependencies:**
+
 - `pdfplumber` – PDF text extraction
 - `sentence-transformers` – Text-to-vector embeddings (384-dim vectors)
 - `numpy` – Vector operations and similarity scoring
 - `scikit-learn` – Optional future machine learning
 
 **Optional:**
+
 - `transformers` – Needed only if using local QA with a Hugging Face text-generation model
 
 ## Run the Program
@@ -56,12 +58,14 @@ python src/main.py
 ```
 
 This:
+
 - Loads all documents from `data/` (PDF or TXT)
 - Classifies each document using a weighted keyword + regex scorer
 - Extracts structured fields (invoice number, email, account, etc.)
 - Saves results to `output/output.json`
 
 **Sample output:**
+
 ```json
 {
   "invoice.pdf": {
@@ -81,6 +85,7 @@ python src/main.py search "Find all documents mentioning payments due in January
 ```
 
 This:
+
 1. Chunks each document into overlapping 120-word segments
 2. Encodes all chunks as 384-dimensional vectors using `SentenceTransformer("all-MiniLM-L6-v2")`
 3. Encodes your query to the same vector space
@@ -88,6 +93,7 @@ This:
 5. Returns top-3 most relevant chunks with scores
 
 **Example output:**
+
 ```
 - Sample_Utility_Bill.pdf [chunk 8] score=0.489
   within 20 days of the billing date, the bill is considered correct and returned payment. payable...
@@ -97,6 +103,7 @@ This:
 ```
 
 **Use with `--top-k` to change result count:**
+
 ```bash
 python src/main.py search "invoice amount" --top-k 5
 ```
@@ -110,11 +117,13 @@ python src/main.py qa "What is the amount due in the utility bill?"
 This retrieves relevant chunks (via semantic search) and displays them without generation.
 
 **With a local Hugging Face model:**
+
 ```bash
 python src/main.py qa "What is the amount due?" --llm-model mistral-7b-instruct-v0.1
 ```
 
 The system will:
+
 1. Retrieve the 3 most relevant chunks
 2. Build a prompt: `"Context: [chunks]\n\nQuestion: ...\nAnswer:"`
 3. Run the local model to generate an answer
@@ -124,12 +133,14 @@ The system will:
 ### Classification Pipeline
 
 **Step 1: Weighted Scoring**
+
 - Each document is scored against keyword/regex patterns for Invoice, Resume, and Utility Bill
 - Example: Finding "invoice" → +1 score, "invoice #" → +1 score, regex `INV-\d+` → +1 score
 - The class with the highest score wins
 - If scores are tied or all zeros → classified as `Other / Unclassifiable`
 
 **Step 2: Field Extraction**
+
 - Once classified, extraction functions use flexible regex patterns to pull structured data:
   - **Invoice:** invoice number, date (multiple formats), company, total amount
   - **Resume:** name, email, phone, years of experience
@@ -138,6 +149,7 @@ The system will:
 ### Semantic Search Pipeline
 
 **Step 1: Document Chunking**
+
 ```python
 def _chunk_text(text, chunk_size_words=120, overlap_words=30):
     # Split text into 120-word chunks with 30-word overlap
@@ -145,6 +157,7 @@ def _chunk_text(text, chunk_size_words=120, overlap_words=30):
 ```
 
 **Step 2: Encoding**
+
 ```python
 # Each chunk → 384-dimensional vector using SentenceTransformer
 # The model is a lightweight BERT variant trained on sentence similarity
@@ -153,6 +166,7 @@ embeddings = model.encode(chunk_texts, normalize_embeddings=True)
 ```
 
 **Step 3: Similarity Search**
+
 ```python
 # Query → same 384-dim vector space
 query_embedding = model.encode([query], normalize_embeddings=True)
@@ -165,6 +179,7 @@ top_indices = np.argsort(-scores)[:top_k]
 ```
 
 **Why this approach?**
+
 - **Chunking:** Preserves local context; allows fine-grained ranking
 - **Normalized embeddings:** Cosine similarity via dot product (fast, interpretable 0–1 range)
 - **384 dimensions:** Rich enough for meaning; small enough for speed
@@ -201,23 +216,25 @@ Documents → Load & Chunk → Encode (SentenceTransformer)
 
 ## Libraries and Methods Used
 
-| Library | Purpose | Why? |
-|---------|---------|------|
-| `pdfplumber` | PDF text extraction | Standard, reliable, open-source |
-| `SentenceTransformers` | Text-to-vector embeddings | Pretrained, fast, 384-dim output |
-| `NumPy` | Vector similarity scoring | Efficient dot product; no DB overhead |
-| `transformers` | Optional local text generation | Hugging Face ecosystem; fully local QA |
-| `scikit-learn` | Available for future ML tasks | Common baseline; not currently used |
+| Library                | Purpose                        | Why?                                   |
+| ---------------------- | ------------------------------ | -------------------------------------- |
+| `pdfplumber`           | PDF text extraction            | Standard, reliable, open-source        |
+| `SentenceTransformers` | Text-to-vector embeddings      | Pretrained, fast, 384-dim output       |
+| `NumPy`                | Vector similarity scoring      | Efficient dot product; no DB overhead  |
+| `transformers`         | Optional local text generation | Hugging Face ecosystem; fully local QA |
+| `scikit-learn`         | Available for future ML tasks  | Common baseline; not currently used    |
 
 ### Why NumPy Instead of FAISS / Vector Database?
 
 **NumPy (chosen):**
+
 - ✓ Simple: 1 dot product, O(n) time
 - ✓ No extra dependencies (already have NumPy)
 - ✓ Fast enough: 14 chunks → microseconds
 - ✓ Clear code: `scores = embeddings @ query_embedding`
 
 **FAISS / Vector DB (not needed here):**
+
 - Better for 10,000+ chunks or real-time <5ms requirements
 - Adds complexity, disk I/O, serialization overhead
 - Overkill for a 3–4 document project
@@ -250,12 +267,12 @@ Fields are populated only for their relevant document class.
 
 ## Scalability Notes
 
-| Scale | Approach | Notes |
-|-------|----------|-------|
-| **1–100 docs** | NumPy (current) | All embeddings in RAM; <10ms search |
-| **100–10K docs** | NumPy + caching | Save/load embeddings as `.npy` file |
-| **10K–1M docs** | FAISS or Milvus | GPU acceleration, disk-backed indexes |
-| **Real-time API** | Milvus/Weaviate | High throughput, concurrent searches |
+| Scale             | Approach        | Notes                                 |
+| ----------------- | --------------- | ------------------------------------- |
+| **1–100 docs**    | NumPy (current) | All embeddings in RAM; <10ms search   |
+| **100–10K docs**  | NumPy + caching | Save/load embeddings as `.npy` file   |
+| **10K–1M docs**   | FAISS or Milvus | GPU acceleration, disk-backed indexes |
+| **Real-time API** | Milvus/Weaviate | High throughput, concurrent searches  |
 
 Current setup handles **100s of documents** comfortably.
 
